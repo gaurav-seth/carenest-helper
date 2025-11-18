@@ -1,13 +1,19 @@
 package com.carenest.helper.controller;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.carenest.helper.dto.RegisterRequest;
+import com.carenest.helper.entity.Job;
 import com.carenest.helper.service.HelperRegistrationService;
 
 import jakarta.annotation.PostConstruct;
@@ -69,5 +75,47 @@ public class HelperController {
         } else {
             return ResponseEntity.badRequest().body("Registration failed for " + request.getPhoneNumber());
         }
+    }
+    
+    /**
+     * Handles GET request to fetch all registered helpers.
+     * @return a list of helper records from the system
+     */
+    @GetMapping(value = "/all", produces = "application/json")
+    public ResponseEntity<?> getAllHelpers() {
+        return ResponseEntity.ok(helperRegistrationService.getAllHelpers());
+    }
+    
+    /**
+     * Allows a helper to accept a job.
+     * FIRST helper who calls this successfully gets the job.
+     *
+     * @param jobId       ID of the job being accepted
+     * @param helperPhone Phone number of helper accepting the job
+     * @return Success response if job is assigned, error if already taken
+     */
+    @PostMapping("/accept-job/{jobId}")
+    public ResponseEntity<String> acceptJob(
+    		@PathVariable("jobId") UUID jobId,
+    		@RequestParam("helperPhone") String helperPhone) {
+
+        boolean success = helperRegistrationService.acceptJob(jobId, helperPhone);
+
+        if (success) {
+            return ResponseEntity.ok("🎉 Job assigned successfully to helper: " + helperPhone);
+        } else {
+            return ResponseEntity.badRequest().body("❌ Job already taken by another helper!");
+        }
+    }
+    
+    /**
+     * Fetch all jobs that are still open (not accepted by any helper).
+     *
+     * @return List of available jobs
+     */
+    @GetMapping("/jobs/available")
+    public ResponseEntity<List<Job>> getAvailableJobs() {
+        List<Job> openJobs = helperRegistrationService.getOpenJobs();
+        return ResponseEntity.ok(openJobs);
     }
 }

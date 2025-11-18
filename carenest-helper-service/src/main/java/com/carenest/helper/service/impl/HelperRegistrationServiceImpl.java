@@ -4,6 +4,7 @@ package com.carenest.helper.service.impl;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.carenest.helper.dto.RegisterRequest;
 import com.carenest.helper.entity.Helper;
+import com.carenest.helper.entity.Job;
 import com.carenest.helper.repository.HelperRepository;
+import com.carenest.helper.repository.JobRepository;
 import com.carenest.helper.service.HelperRegistrationService;
 
 /**
@@ -23,6 +26,7 @@ public class HelperRegistrationServiceImpl implements HelperRegistrationService 
 
     private final HelperRepository helperRepository;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final JobRepository jobRepository;
 
     /**
      * OTP expiration time in minutes, injected from application properties.
@@ -34,8 +38,10 @@ public class HelperRegistrationServiceImpl implements HelperRegistrationService 
      * Constructs the service with the required repository.
      * @param helperRepository repository for helper entities
      */
-    public HelperRegistrationServiceImpl(HelperRepository helperRepository) {
+    public HelperRegistrationServiceImpl(HelperRepository helperRepository, 
+    		 JobRepository jobRepository) {
         this.helperRepository = helperRepository;
+        this.jobRepository = jobRepository;
     }
 
     /**
@@ -76,4 +82,38 @@ public class HelperRegistrationServiceImpl implements HelperRegistrationService 
 
         return true;
     }
+    
+    @Override
+    public List<Helper> getAllHelpers() {
+        return helperRepository.findAll();
+    }
+    
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public boolean acceptJob(java.util.UUID jobId, String helperPhone) {
+
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("❌ Invalid jobId: " + jobId));
+
+        // FIRST REQUEST WINS
+        if (job.isAccepted()) {
+            System.out.println("❌ Job already taken by helper: " + job.getAcceptedByHelper());
+            return false;
+        }
+
+        job.setAccepted(true);
+        job.setAcceptedByHelper(helperPhone);
+        jobRepository.save(job);
+
+        System.out.println("🏆 JOB WON BY HELPER: " + helperPhone);
+        return true;
+    }
+    
+    @Override
+    public List<Job> getOpenJobs() {
+        return jobRepository.findByAcceptedFalse();
+    }
+
+
+
 }
